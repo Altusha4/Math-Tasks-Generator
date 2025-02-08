@@ -165,7 +165,7 @@
             "kz": {
                 "title": "🔢 Есептер генераторы",
                 "check-btn": "✅ Тексеру",
-                "generate-btn": "🚀 Есепті жасау",
+                "generate-btn": "🚀 Есепті шығару",
                 "lang-label": "🌎 Тілді таңдаңыз:",
                 "difficulty-label": "🎯 Қиындық деңгейін таңдаңыз:",
                 "input-error": "⚠ Енгізу қатесі!",
@@ -201,11 +201,15 @@
         let userAnswer = document.getElementById("answer").value.trim();
         let resultText = document.getElementById("result");
 
+        console.log("👤 Введенный ответ:", userAnswer); // Отладка
+
         if (!userAnswer) {
             resultText.innerText = translations[currentLanguage]["input-error"];
             resultText.style.color = "orange";
             return;
         }
+
+        let equationKey = currentEquationKey.replace(/\s+/g, "").trim();
 
         let correctSolutions = {
             "x+3=7": ["4"],
@@ -213,7 +217,10 @@
             "x^3-6x=0": ["0", "√6", "-√6"]
         };
 
-        if (!correctSolutions[currentEquationKey]) {
+        console.log("🛠 Текущее уравнение:", equationKey);
+        console.log("✔ Возможные решения:", correctSolutions[equationKey]);
+
+        if (!correctSolutions[equationKey]) {
             resultText.innerHTML = "⚠ <b>Ошибка</b>: уравнение не найдено!";
             resultText.style.color = "red";
             return;
@@ -223,8 +230,19 @@
         let formattedUserAnswer = userAnswer.replace(/\s+/g, "").split(/[;,]/); // Удаляем пробелы и разделяем
         let correctAnswers = correctSolutions[equationKey];
 
+        let convertToNumbers = arr => arr.map(x => {
+            if (x.includes("√")) return x;  // Оставляем корни в текстовом виде
+            return isNaN(x) ? x : Number(x);
+        });
+
+        formattedUserAnswer = convertToNumbers(formattedUserAnswer);
+        correctAnswers = convertToNumbers(correctAnswers);
+
         formattedUserAnswer.sort();
         correctAnswers.sort();
+
+        console.log("👤 Ответ пользователя:", formattedUserAnswer);
+        console.log("✅ Ожидаемый ответ:", correctAnswers);
 
         if (JSON.stringify(formattedUserAnswer) === JSON.stringify(correctAnswers)) {
             resultText.innerHTML = "🎉 <b>" + translations[currentLanguage]["correct"] + "</b>";
@@ -250,13 +268,6 @@
         difficultyOptions[2].text = selectedLang === "ru" ? "Сложный" : selectedLang === "kz" ? "Қиын" : "Hard";
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll('.key').forEach(button => {
-            button.addEventListener('click', function () {
-                insertSymbol(this.innerText);
-            });
-        });
-    });
     function insertSymbol(symbol) {
         let input = document.getElementById("answer");
         let startPos = input.selectionStart;
