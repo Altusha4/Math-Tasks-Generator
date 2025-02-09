@@ -114,6 +114,12 @@
             font-size: 18px;
             margin-top: 10px;
         }
+        .score {
+            font-size: 20px;
+            margin-top: 15px;
+            font-weight: bold;
+            color: yellow;
+        }
     </style>
 </head>
 <body>
@@ -121,6 +127,7 @@
     <div class="main-container">
         <div class="left-panel">
             <h1 id="title">🔢 Генератор задач</h1>
+            <p id="timer" style="font-size: 18px; font-weight: bold; color: yellow;">⏳ 60 сек.</p>
             <h2 class="math-equation" id="task">$$x^3 - 6x = 0$$</h2>
             <input type="text" id="answer" placeholder="Введите ответ">
             <div class="keyboard">
@@ -130,6 +137,7 @@
             </div>
             <button id="check-btn" onclick="checkAnswer()">✅ Проверить</button>
             <p id="result" class="result"></p>
+            <p id="score" class="score">🔢 Ваши баллы: 0</p>
         </div>
         <div class="right-panel">
             <label for="language" id="lang-label">🌎 Выберите язык:</label>
@@ -183,7 +191,7 @@
                 "incorrect": "❌ Incorrect!"
             }
         };
-
+    let startTime;
     function generateTask() {
         let difficulty = document.getElementById("difficulty").value;
         let equations = {
@@ -195,11 +203,60 @@
         currentEquationKey = equations[difficulty].replace(/\s+/g, "").trim();
         document.getElementById("task").innerHTML = `$$${equations[difficulty]}$$`;
         MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+
+        document.getElementById("answer").disabled = false;  // Разблокируем ввод
+        document.getElementById("check-btn").disabled = false;  // Разблокируем кнопку
+
+        resetTimer(); // Запускаем таймер
+        startTime = new Date();
+    }
+    let timeLeft = 30; // Время в секундах (можно изменить)
+    let timerInterval;
+
+    function startTimer() {
+        clearInterval(timerInterval); // Очищаем предыдущий таймер (если был)
+        timeLeft = 60; // Сброс времени
+
+        let timerDisplay = document.getElementById("timer");
+        let answerInput = document.getElementById("answer");
+        let checkBtn = document.getElementById("check-btn");
+
+        timerDisplay.innerText = `⏳ ${timeLeft} сек.`; // Показываем начальное значение
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval); // Останавливаем таймер
+                timerDisplay.innerText = "⏳ Время вышло!";
+                answerInput.disabled = true;  // Блокируем ввод
+                checkBtn.disabled = true;     // Блокируем кнопку "Проверить"
+                return;
+            }
+
+            timerDisplay.innerText = `⏳ ${timeLeft} сек.`; // Обновляем таймер
+
+        }, 1000); // Интервал 1 сек.
     }
 
+    function resetTimer() {
+        clearInterval(timerInterval);
+        startTimer(); // Перезапускаем таймер при генерации новой задачи
+    }
+
+    let score = 0; // Переменная для хранения баллов
+    function updateScore() {
+        let scoreText = {
+            "ru": `🔢 Ваши баллы: ${score}`,
+            "kz": `🔢 Сіздің ұпайыңыз: ${score}`,
+            "en": `🔢 Your score: ${score}`
+        };
+        document.getElementById("score").innerText = scoreText[currentLanguage];
+    }
     function checkAnswer() {
         let userAnswer = document.getElementById("answer").value.trim();
         let resultText = document.getElementById("result");
+        let scoreText = document.getElementById("score");
 
         console.log("👤 Введенный ответ:", userAnswer); // Отладка
 
@@ -247,10 +304,14 @@
         if (JSON.stringify(formattedUserAnswer) === JSON.stringify(correctAnswers)) {
             resultText.innerHTML = "🎉 <b>" + translations[currentLanguage]["correct"] + "</b>";
             resultText.style.color = "lightgreen";
+            score += 10; // ✅ Добавляем 10 баллов за правильный ответ
         } else {
             resultText.innerHTML = "❌ <b>" + translations[currentLanguage]["incorrect"] + "</b>";
             resultText.style.color = "red";
-        }
+        updateScore();
+    }
+
+    updateScore(); // 🔥 Обновляем баллы на экране
     }
     function changeLanguage() {
         let selectedLang = document.getElementById("language").value;
@@ -266,6 +327,7 @@
         difficultyOptions[0].text = selectedLang === "ru" ? "Легкий" : selectedLang === "kz" ? "Оңай" : "Easy";
         difficultyOptions[1].text = selectedLang === "ru" ? "Средний" : selectedLang === "kz" ? "Орташа" : "Medium";
         difficultyOptions[2].text = selectedLang === "ru" ? "Сложный" : selectedLang === "kz" ? "Қиын" : "Hard";
+        updateScore();
     }
 
     function insertSymbol(symbol) {
