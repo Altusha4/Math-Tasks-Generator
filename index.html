@@ -6,6 +6,7 @@
     <title>Генератор задач</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -156,6 +157,26 @@
         </div>
     </div>
     <script>
+        // Подключаем WebSocket к серверу Flask-SocketIO
+        var socket = io.connect("http://127.0.0.1:5050");
+
+        // При получении обновления очков от сервера
+        socket.on("score_updated", function (data) {
+            console.log("🔥 Обновлены очки:", data.score);
+            document.getElementById("score").innerText = `🔢 Ваши баллы: ${data.score}`;
+        });
+
+        // Функция отправки обновленных очков на сервер
+        function sendScoreToServer(score) {
+            socket.emit("update_score", { score: score });
+        }
+
+        // Встраиваем WebSocket в функцию проверки ответа
+        let originalCheckAnswer = checkAnswer;
+        checkAnswer = function () {
+            originalCheckAnswer(); // Вызываем оригинальную функцию
+            sendScoreToServer(score); // Отправляем обновленный счет на сервер
+        };
         let currentLanguage = "ru"; // По умолчанию русский
         let currentEquationKey = "";
 
