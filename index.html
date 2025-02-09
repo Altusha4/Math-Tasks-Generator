@@ -147,6 +147,15 @@
                 <option value="kz">Қазақша 🇰🇿</option>
                 <option value="en">English 🇬🇧</option>
             </select>
+            <label for="category" id="category-label">📚 Выберите категорию:</label>
+            <select id="category">
+                <option value="Arithmetic">➕ Арифметика</option>
+                <option value="Algebra">📐 Алгебра</option>
+                <option value="Trigonometry">📏 Тригонометрия</option>
+                <option value="Calculus 1">🔢 Calculus 1</option>
+                <option value="Calculus 2">📊 Calculus 2</option>
+            </select>
+
             <label for="difficulty" id="difficulty-label">🎯 Выберите сложность:</label>
             <select id="difficulty" onchange="changeDifficulty()">
                 <option value="easy">Легкий</option>
@@ -214,25 +223,41 @@
         };
     let startTime;
     function generateTask() {
+        let category = document.getElementById("category").value;
         let difficulty = document.getElementById("difficulty").value;
-        let equations = {
-            "easy": "x + 3 = 7",
-            "medium": "x^2 - 4 = 0",
-            "hard": "x^3 - 6x = 0"
+
+        let categoryMap = {
+            "Арифметика": "Arithmetic",
+            "Алгебра": "Algebra",
+            "Тригонометрия": "Trigonometry",
+            "Calculus 1": "Calculus 1",
+            "Calculus 2": "Calculus 2"
         };
 
-        currentEquationKey = equations[difficulty].replace(/\s+/g, "").trim();
-        document.getElementById("task").innerHTML = `$$${equations[difficulty]}$$`;
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+        category = categoryMap[category] || category;
 
-        document.getElementById("answer").disabled = false;  // Разблокируем ввод
-        document.getElementById("check-btn").disabled = false;  // Разблокируем кнопку
+        fetch("/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: category, difficulty: difficulty })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById("task").innerText = "⚠ " + data.error;
+            } else {
+                document.getElementById("task").innerHTML = `$$${data.question}$$`;
+                MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
 
-        resetTimer(); // Запускаем таймер
-        startTime = new Date();
+                // Разблокируем ввод и кнопку проверки
+                document.getElementById("answer").disabled = false;
+                document.getElementById("check-btn").disabled = false;
+
+                resetTimer(); // Запускаем таймер
+            }
+        })
+        .catch(error => console.error("Ошибка:", error));
     }
-    let timeLeft = 30; // Время в секундах (можно изменить)
-    let timerInterval;
 
     function startTimer() {
         clearInterval(timerInterval); // Очищаем предыдущий таймер (если был)
@@ -274,66 +299,58 @@
         };
         document.getElementById("score").innerText = scoreText[currentLanguage];
     }
+
     function checkAnswer() {
         let userAnswer = document.getElementById("answer").value.trim();
         let resultText = document.getElementById("result");
-        let scoreText = document.getElementById("score");
 
-        console.log("👤 Введенный ответ:", userAnswer); // Отладка
+        console.log("👤 Введенный ответ:", userAnswer);
 
         if (!userAnswer) {
-            resultText.innerText = translations[currentLanguage]["input-error"];
+            resultText.innerText = "⚠ Ошибка ввода!";
             resultText.style.color = "orange";
             return;
         }
 
-        let equationKey = currentEquationKey.replace(/\s+/g, "").trim();
+        let equationText = document.getElementById("task").innerText.trim();
+        equationText = equationText.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
 
-        let correctSolutions = {
-            "x+3=7": ["4"],
-            "x^2-4=0": ["-2", "2"],
-            "x^3-6x=0": ["0", "√6", "-√6"]
-        };
+        let firstOccurrence = equationText.indexOf("=");
+        if (firstOccurrence !== -1) {
+            let leftPart = equationText.slice(0, firstOccurrence + 1).trim();
+            let rightPart = equationText.slice(firstOccurrence + 1).trim();
 
-        console.log("🛠 Текущее уравнение:", equationKey);
-        console.log("✔ Возможные решения:", correctSolutions[equationKey]);
-
-        if (!correctSolutions[equationKey]) {
-            resultText.innerHTML = "⚠ <b>Ошибка</b>: уравнение не найдено!";
-            resultText.style.color = "red";
-            return;
+            if (rightPart.startsWith(leftPart)) {
+                equationText = leftPart + " " + rightPart.slice(leftPart.length).trim();
+            }
         }
 
-        // 🔹 Форматируем ответ пользователя
-        let formattedUserAnswer = userAnswer.replace(/\s+/g, "").split(/[;,]/); // Удаляем пробелы и разделяем
-        let correctAnswers = correctSolutions[equationKey];
+        console.log("📌 Отправляем на сервер:", equationText);
 
-        let convertToNumbers = arr => arr.map(x => {
-            if (x.includes("√")) return x;  // Оставляем корни в текстовом виде
-            return isNaN(x) ? x : Number(x);
-        });
+        fetch("/check_answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ equation: equationText, answer: userAnswer }) // Отправляем исправленное уравнение
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("✅ Ответ от сервера:", data);
 
-        formattedUserAnswer = convertToNumbers(formattedUserAnswer);
-        correctAnswers = convertToNumbers(correctAnswers);
-
-        formattedUserAnswer.sort();
-        correctAnswers.sort();
-
-        console.log("👤 Ответ пользователя:", formattedUserAnswer);
-        console.log("✅ Ожидаемый ответ:", correctAnswers);
-
-        if (JSON.stringify(formattedUserAnswer) === JSON.stringify(correctAnswers)) {
-            resultText.innerHTML = "🎉 <b>" + translations[currentLanguage]["correct"] + "</b>";
-            resultText.style.color = "lightgreen";
-            score += 10; // ✅ Добавляем 10 баллов за правильный ответ
-        } else {
-            resultText.innerHTML = "❌ <b>" + translations[currentLanguage]["incorrect"] + "</b>";
-            resultText.style.color = "red";
-        updateScore();
+            if (data.correct) {
+                resultText.innerHTML = "🎉 <b>Правильно!</b>";
+                resultText.style.color = "lightgreen";
+                score += 10;
+                sendScoreToServer(score);
+            } else {
+                resultText.innerHTML = "❌ <b>Неправильно!</b>";
+                resultText.style.color = "red";
+            }
+            updateScore();
+        })
+        .catch(error => console.error("Ошибка:", error));
     }
 
-    updateScore(); // 🔥 Обновляем баллы на экране
-    }
+
     function changeLanguage() {
         let selectedLang = document.getElementById("language").value;
         currentLanguage = selectedLang;
