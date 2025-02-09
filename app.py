@@ -38,7 +38,6 @@ def handle_message(msg):
 # WebSocket для обновления очков
 @socketio.on('update_score')
 def update_score(data):
-    user_id = request.sid
     score_data["score"] = data["score"]
     print(f"🔢 Обновление очков: {data['score']}")
     emit("score_updated", score_data, broadcast=True)
@@ -46,42 +45,120 @@ def update_score(data):
 
 # Категории задач
 categories = {
-    "Алгебра": {
-        "easy": [{"question": sp.latex(sp.Eq(sp.Symbol('x') + 3, 7)),
+    "Arithmetic": {
+        "easy": [{"question": "12 + 8 = ?", "solution": "20"}],
+        "medium": [{"question": "45 - 19 = ?", "solution": "26"}],
+        "hard": [{"question": "18 × 7 = ?", "solution": "126"}]
+    },
+    "Algebra": {
+        "easy": [{"question": sp.latex(sp.Eq(sp.Symbol('x') + 3, 7)).replace("{", "").replace("}", ""),
                   "solution": ", ".join(map(str, sp.solve(sp.Symbol('x') + 3 - 7, sp.Symbol('x'))))}],
 
-        "medium": [{"question": sp.latex(sp.Eq(sp.Symbol('x') ** 2 - 4, 0)),
+        "medium": [{"question": sp.latex(sp.Eq(sp.Symbol('x') ** 2 - 4, 0)).replace("{", "").replace("}", ""),
                     "solution": ", ".join(map(str, sp.solve(sp.Symbol('x') ** 2 - 4, sp.Symbol('x'))))}],
 
-        "hard": [{"question": sp.latex(sp.Eq(sp.Symbol('x') ** 3 - 6 * sp.Symbol('x'), 0)),
+        "hard": [{"question": sp.latex(sp.Eq(sp.Symbol('x') ** 3 - 6 * sp.Symbol('x'), 0)).replace("{", "").replace("}", ""),
                   "solution": ", ".join(map(str, sp.solve(sp.Symbol('x') ** 3 - 6 * sp.Symbol('x'), sp.Symbol('x'))))}]
+    },
+    "Trigonometry": {
+        "easy": [{"question": "sin(30°) = ?", "solution": "0.5"}],
+        "medium": [{"question": "cos(60°) = ?", "solution": "0.5"}],
+        "hard": [{"question": "tan(45°) = ?", "solution": "1"}]
+    },
+    "Calculus 1": {
+        "easy": [{"question": "d/dx (x²) = ?", "solution": "2x"}],
+        "medium": [{"question": "∫ x dx = ?", "solution": "x^2/2 + C"}],
+        "hard": [{"question": "d/dx (sin x) = ?", "solution": "cos x"}]
+    },
+    "Calculus 2": {
+        "easy": [{"question": "∑(1/n²) from n=1 to ∞ converges to?", "solution": "π^2/6"}],
+        "medium": [{"question": "∫ e^x dx = ?", "solution": "e^x + C"}],
+        "hard": [{"question": "Solve dy/dx = 3y", "solution": "y = Ce^(3x)"}]
     }
 }
+# Преобразуем обычные строки в LaTeX-формат для корректного отображения
+for category in categories:
+    for difficulty in categories[category]:
+        for task in categories[category][difficulty]:
+            if not task["question"].startswith("\\"):  # Если это обычный текст
+                task["question"] = f"\\text{{{task['question']}}}"
 
+
+print("✅ Категории загружены и отформатированы!")
 
 # Главная страница
 @app.route('/')
 def index():
     return render_template("index.html", categories=categories.keys())
 
-
-# Генерация задачи
 @app.route('/generate', methods=['POST'])
 def generate():
     data = request.json
-    category = data.get("category", "")
-    difficulty = data.get("difficulty", "easy")
+    category = data.get("category", "").strip()
+    difficulty = data.get("difficulty", "easy").strip()
+
+    print("🔍 Запрос получен: категория =", category, ", сложность =", difficulty)
+    print("📌 Доступные категории:", list(categories.keys()))
+
+    category_map = {
+        "Алгебра": "Algebra",
+        "Тригонометрия": "Trigonometry",
+        "Матанализ 1": "Calculus 1",
+        "Матанализ 2": "Calculus 2",
+        "Арифметика": "Arithmetic"
+    }
+    category = category_map.get(category, category)
+
+    print("🎯 Итоговая категория после преобразования:", category)
 
     if category not in categories:
+        print(f"⚠ Ошибка: Категория '{category}' не найдена!")
         return jsonify({"error": f"Категория '{category}' не найдена"}), 400
 
     if difficulty not in categories[category]:
+        print(f"⚠ Ошибка: Сложность '{difficulty}' не найдена!")
         return jsonify({"error": f"Сложность '{difficulty}' не найдена"}), 400
 
     task = random.choice(categories[category][difficulty])
+    print(f"✅ Сгенерирована задача: {task}")
     return jsonify(task), 200
 
+@app.route('/check_answer', methods=['POST'])
+def check_answer():
+    data = request.json
+    equation = data.get("equation", "").strip()
+    user_answer = data.get("answer", "").strip()
+
+    # Убираем лишние символы и LaTeX-коды
+    equation_cleaned = equation.replace("\n", "").replace("\r", "").replace("\\text{", "").replace("}", "").replace("{", "").strip()
+    equation_cleaned = " ".join(equation_cleaned.split())  # Убираем лишние пробелы
+
+    parts = equation_cleaned.split("?")
+    if len(parts) > 2:
+        equation_cleaned = parts[0].strip() + " ?"
+
+    if equation_cleaned.endswith("? ?"):
+        equation_cleaned = equation_cleaned[:-2] + "?"
+
+    print(f"🔎 Проверка на сервере: уравнение = '{equation_cleaned}', ответ = '{user_answer}'")
+
+    # Поиск задачи в базе
+    for category in categories.values():
+        for difficulty in category.values():
+            for task in difficulty:
+                task_equation = task["question"].replace("\n", "").replace("\r", "").replace("\\text{", "").replace("}", "").replace("{", "").strip()
+                task_equation = " ".join(task_equation.split())  # Убираем пробелы
+
+                if task_equation == equation_cleaned:
+                    correct_answers = set(task["solution"].split(", "))  # Разделяем возможные ответы
+                    user_answers = set(user_answer.split(", "))
+
+                    print(f"✅ Совпадение найдено: {task_equation} == {equation_cleaned}")
+                    return jsonify({"correct": user_answers == correct_answers})
+
+    print(f"⚠ Ошибка: уравнение '{equation_cleaned}' не найдено!")
+    return jsonify({"error": "Уравнение не найдено"}), 400
 
 # Запуск сервера WebSocket
 if __name__ == '__main__':
-    eventlet.wsgi.server(eventlet.listen(('127.0.0.1', 5050)), app)
+    socketio.run(app, host="127.0.0.1", port=5050, debug=True)
