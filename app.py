@@ -7,20 +7,16 @@ import eventlet
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
-# Глобальный счетчик очков
 score_data = {"score": 0}
 connected_users = set()
 
-# Логируем подключения пользователей
 @socketio.on('connect')
 def handle_connect():
-    user_id = request.sid  # Уникальный идентификатор сессии пользователя
+    user_id = request.sid
     connected_users.add(user_id)
     print(f"🔵 Новый пользователь подключился: {user_id} (Всего: {len(connected_users)})")
     emit('user_connected', {'message': f'Привет, {user_id}!'}, broadcast=True)
 
-
-# Логируем отключения пользователей
 @socketio.on('disconnect')
 def handle_disconnect():
     user_id = request.sid
@@ -28,22 +24,17 @@ def handle_disconnect():
         connected_users.remove(user_id)
     print(f"🔴 Пользователь отключился: {user_id} (Осталось: {len(connected_users)})")
 
-# WebSocket обработчик для получения сообщений от клиента
 @socketio.on('message')
 def handle_message(msg):
     print(f"📩 Сообщение от пользователя {request.sid}: {msg}")
     send(f"Сервер получил сообщение: {msg}", broadcast=True)
 
-
-# WebSocket для обновления очков
 @socketio.on('update_score')
 def update_score(data):
     score_data["score"] = data["score"]
     print(f"🔢 Обновление очков: {data['score']}")
     emit("score_updated", score_data, broadcast=True)
 
-
-# Категории задач
 categories = {
     "Arithmetic": {
         "easy": [{"question": "12 + 8 = ?", "solution": "20"}],
@@ -76,17 +67,16 @@ categories = {
         "hard": [{"question": "Solve dy/dx = 3y", "solution": "y = Ce^(3x)"}]
     }
 }
-# Преобразуем обычные строки в LaTeX-формат для корректного отображения
+
 for category in categories:
     for difficulty in categories[category]:
         for task in categories[category][difficulty]:
-            if not task["question"].startswith("\\"):  # Если это обычный текст
+            if not task["question"].startswith("\\"):
                 task["question"] = f"\\text{{{task['question']}}}"
 
 
 print("✅ Категории загружены и отформатированы!")
 
-# Главная страница
 @app.route('/')
 def index():
     return render_template("index.html", categories=categories.keys())
@@ -130,9 +120,9 @@ def check_answer():
     user_answer = data.get("answer", "").strip()
 
     # Убираем лишние символы и LaTeX-коды
-    equation_cleaned = equation.replace("\n", "").replace("\r", "").replace("\\text{", "").replace("}", "").replace("{", "").strip()
-    equation_cleaned = " ".join(equation_cleaned.split())  # Убираем лишние пробелы
-
+    equation_cleaned = equation.replace("\n", "").replace("\r", "").replace("\\text{", "").replace("}", "").replace("{",
+                                                                                                                    "").strip()
+    equation_cleaned = " ".join(equation_cleaned.split())
     parts = equation_cleaned.split("?")
     if len(parts) > 2:
         equation_cleaned = parts[0].strip() + " ?"
@@ -142,15 +132,16 @@ def check_answer():
 
     print(f"🔎 Проверка на сервере: уравнение = '{equation_cleaned}', ответ = '{user_answer}'")
 
-    # Поиск задачи в базе
     for category in categories.values():
         for difficulty in category.values():
             for task in difficulty:
-                task_equation = task["question"].replace("\n", "").replace("\r", "").replace("\\text{", "").replace("}", "").replace("{", "").strip()
-                task_equation = " ".join(task_equation.split())  # Убираем пробелы
+                task_equation = task["question"].replace("\n", "").replace("\r", "").replace("\\text{", "").replace("}",
+                                                                                                                    "").replace(
+                    "{", "").strip()
+                task_equation = " ".join(task_equation.split())
 
                 if task_equation == equation_cleaned:
-                    correct_answers = set(task["solution"].split(", "))  # Разделяем возможные ответы
+                    correct_answers = set(task["solution"].split(", "))
                     user_answers = set(user_answer.split(", "))
 
                     print(f"✅ Совпадение найдено: {task_equation} == {equation_cleaned}")
@@ -159,6 +150,5 @@ def check_answer():
     print(f"⚠ Ошибка: уравнение '{equation_cleaned}' не найдено!")
     return jsonify({"error": "Уравнение не найдено"}), 400
 
-# Запуск сервера WebSocket
 if __name__ == '__main__':
     socketio.run(app, host="127.0.0.1", port=5050, debug=True)
