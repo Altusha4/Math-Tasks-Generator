@@ -8,9 +8,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body {
+        body,light-theme {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        body.dark-theme {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #333, #555, #777);
             color: white;
             display: flex;
             justify-content: center;
@@ -25,7 +36,7 @@
             width: 100%;
             font-size: 28px;
             font-weight: bold;
-            color: rgba(255, 255, 255, 0.2); /* Полупрозрачный */
+            color: rgba(255, 255, 255, 0.2);
             white-space: nowrap;
             animation: moveText 10s linear infinite;
         }
@@ -121,9 +132,26 @@
             font-weight: bold;
             color: yellow;
         }
+        .theme-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .theme-toggle-btn:hover {
+            background-color: #ff4757;
+        }
     </style>
 </head>
-<body>
+
+<body class="light-theme">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌙 Сменить тему</button>
+
     <div class="moving-text">🔥 Решай задачи и прокачивай свой мозг! 🚀</div>
     <div class="main-container">
         <div class="left-panel">
@@ -166,27 +194,33 @@
         </div>
     </div>
     <script>
-        // Подключаем WebSocket к серверу Flask-SocketIO
+        function toggleTheme() {
+            let body = document.body;
+            if (body.classList.contains("light-theme")) {
+                body.classList.remove("light-theme");
+                body.classList.add("dark-theme");
+            } else {
+                body.classList.remove("dark-theme");
+                body.classList.add("light-theme");
+            }
+        }
         var socket = io.connect("http://127.0.0.1:5050");
 
-        // При получении обновления очков от сервера
         socket.on("score_updated", function (data) {
             console.log("🔥 Обновлены очки:", data.score);
             document.getElementById("score").innerText = `🔢 Ваши баллы: ${data.score}`;
         });
 
-        // Функция отправки обновленных очков на сервер
         function sendScoreToServer(score) {
             socket.emit("update_score", { score: score });
         }
 
-        // Встраиваем WebSocket в функцию проверки ответа
         let originalCheckAnswer = checkAnswer;
         checkAnswer = function () {
-            originalCheckAnswer(); // Вызываем оригинальную функцию
-            sendScoreToServer(score); // Отправляем обновленный счет на сервер
+            originalCheckAnswer();
+            sendScoreToServer(score);
         };
-        let currentLanguage = "ru"; // По умолчанию русский
+        let currentLanguage = "ru";
         let currentEquationKey = "";
 
         let translations = {
@@ -197,8 +231,8 @@
                 "lang-label": "🌎 Выберите язык:",
                 "difficulty-label": "🎯 Выберите сложность:",
                 "input-error": "⚠ Ошибка ввода!",
-                "correct": "🎉 Правильно!",
-                "incorrect": "❌ Неправильно!"
+                "correct": "🎉",
+                "incorrect": "❌"
             },
             "kz": {
                 "title": "🔢 Есептер генераторы",
@@ -207,8 +241,8 @@
                 "lang-label": "🌎 Тілді таңдаңыз:",
                 "difficulty-label": "🎯 Қиындық деңгейін таңдаңыз:",
                 "input-error": "⚠ Енгізу қатесі!",
-                "correct": "🎉 Дұрыс!",
-                "incorrect": "❌ Қате!"
+                "correct": "🎉",
+                "incorrect": "❌"
             },
             "en": {
                 "title": "🔢 Problem Generator",
@@ -217,11 +251,41 @@
                 "lang-label": "🌎 Choose a language:",
                 "difficulty-label": "🎯 Choose difficulty:",
                 "input-error": "⚠ Input error!",
-                "correct": "🎉 Correct!",
-                "incorrect": "❌ Incorrect!"
+                "correct": "🎉",
+                "incorrect": "❌"
             }
         };
-    let startTime;
+        let timerInterval;
+        let timeLeft;
+
+        function startTimer() {
+        timeLeft = 60;  // Время отсчета (60 секунд)
+        let timerDisplay = document.getElementById("timer");
+        let answerInput = document.getElementById("answer");
+        let checkBtn = document.getElementById("check-btn");
+
+        timerDisplay.innerText = `⏳ ${timeLeft} сек.`;
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerDisplay.innerText = "⏳ Время вышло!";
+                answerInput.disabled = true;
+                checkBtn.disabled = true;
+                return;
+            }
+
+            timerDisplay.innerText = `⏳ ${timeLeft} сек.`;
+        }, 1000);
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);  // Останавливаем старый таймер
+        startTimer();  // Запускаем новый
+    }
+
     function generateTask() {
         let category = document.getElementById("category").value;
         let difficulty = document.getElementById("difficulty").value;
@@ -249,48 +313,46 @@
                 document.getElementById("task").innerHTML = `$$${data.question}$$`;
                 MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
 
-                // Разблокируем ввод и кнопку проверки
                 document.getElementById("answer").disabled = false;
                 document.getElementById("check-btn").disabled = false;
 
-                resetTimer(); // Запускаем таймер
+                resetTimer();
             }
         })
         .catch(error => console.error("Ошибка:", error));
     }
 
     function startTimer() {
-        clearInterval(timerInterval); // Очищаем предыдущий таймер (если был)
-        timeLeft = 60; // Сброс времени
+        clearInterval(timerInterval);
+        timeLeft = 60;
 
         let timerDisplay = document.getElementById("timer");
         let answerInput = document.getElementById("answer");
         let checkBtn = document.getElementById("check-btn");
 
-        timerDisplay.innerText = `⏳ ${timeLeft} сек.`; // Показываем начальное значение
+        timerDisplay.innerText = `⏳ ${timeLeft} сек.`;
 
         timerInterval = setInterval(() => {
             timeLeft--;
 
             if (timeLeft <= 0) {
-                clearInterval(timerInterval); // Останавливаем таймер
+                clearInterval(timerInterval);
                 timerDisplay.innerText = "⏳ Время вышло!";
-                answerInput.disabled = true;  // Блокируем ввод
-                checkBtn.disabled = true;     // Блокируем кнопку "Проверить"
+                answerInput.disabled = true;
+                checkBtn.disabled = true;
                 return;
             }
 
-            timerDisplay.innerText = `⏳ ${timeLeft} сек.`; // Обновляем таймер
-
-        }, 1000); // Интервал 1 сек.
+            timerDisplay.innerText = `⏳ ${timeLeft} сек.`;
+        }, 1000);
     }
 
     function resetTimer() {
         clearInterval(timerInterval);
-        startTimer(); // Перезапускаем таймер при генерации новой задачи
+        startTimer();
     }
 
-    let score = 0; // Переменная для хранения баллов
+    let score = 0;
     function updateScore() {
         let scoreText = {
             "ru": `🔢 Ваши баллы: ${score}`,
@@ -315,34 +377,24 @@
         let equationText = document.getElementById("task").innerText.trim();
         equationText = equationText.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
 
-        let firstOccurrence = equationText.indexOf("=");
-        if (firstOccurrence !== -1) {
-            let leftPart = equationText.slice(0, firstOccurrence + 1).trim();
-            let rightPart = equationText.slice(firstOccurrence + 1).trim();
-
-            if (rightPart.startsWith(leftPart)) {
-                equationText = leftPart + " " + rightPart.slice(leftPart.length).trim();
-            }
-        }
-
         console.log("📌 Отправляем на сервер:", equationText);
 
         fetch("/check_answer", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ equation: equationText, answer: userAnswer }) // Отправляем исправленное уравнение
+            body: JSON.stringify({ equation: equationText, answer: userAnswer })
         })
         .then(response => response.json())
         .then(data => {
             console.log("✅ Ответ от сервера:", data);
 
             if (data.correct) {
-                resultText.innerHTML = "🎉 <b>Правильно!</b>";
+                resultText.innerHTML = "🎉";
                 resultText.style.color = "lightgreen";
                 score += 10;
                 sendScoreToServer(score);
             } else {
-                resultText.innerHTML = "❌ <b>Неправильно!</b>";
+                resultText.innerHTML = "❌";
                 resultText.style.color = "red";
             }
             updateScore();
