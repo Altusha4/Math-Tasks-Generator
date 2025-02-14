@@ -10,7 +10,7 @@
     <style>
         body,light-theme {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            background: linear-gradient(135deg, #3a8d99, #6dbf8b);
             color: white;
             display: flex;
             justify-content: center;
@@ -21,7 +21,7 @@
         }
         body.dark-theme {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #333, #555, #777);
+            background: linear-gradient(135deg, #0a2a33, #00403d);
             color: white;
             display: flex;
             justify-content: center;
@@ -29,6 +29,27 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+        }
+
+        button.theme-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 5px;
+            background-color: #3ba7b5;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            width: auto;
+        }
+
+        button.theme-toggle-btn:hover {
+            background-color: #2b8b99;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
         }
         .moving-text {
             position: absolute;
@@ -46,6 +67,44 @@
             to { transform: translateX(-100%); }
         }
 
+        .menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            gap: 15px;
+        }
+
+        .menu li {
+            margin: 0;
+        }
+
+        .menu a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .menu a:hover {
+            background-color: #4cbfae;
+            box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
         .main-container {
             display: flex;
             width: 90%;
@@ -54,7 +113,12 @@
             padding: 20px;
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
+            transition: all 0.3s;
+        }
+
+        body.dark-theme .main-container {
+            background: rgba(0, 0, 0, 0.6); /* Темный фон для контейнера в темной теме */
         }
 
         .left-panel, .right-panel {
@@ -73,6 +137,10 @@
             margin: 15px 0;
         }
 
+        body.dark-theme button:hover {
+            background: #3b575e; /* Подсветка для кнопок в темной теме */
+        }
+
         input {
             font-size: 18px;
             padding: 10px;
@@ -81,6 +149,16 @@
             border-radius: 8px;
             border: none;
             text-align: center;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border: 2px solid #4cbfae;
+        }
+
+        body.dark-theme input:focus {
+            border: 2px solid #4c6a74; /* Подсветка для поля ввода в темной теме */
         }
 
         .keyboard {
@@ -93,7 +171,7 @@
             font-size: 18px;
             padding: 10px;
             border-radius: 5px;
-            background: #ff6b6b;
+            background: #4cbfae;
             color: white;
             cursor: pointer;
             transition: 0.2s;
@@ -101,7 +179,7 @@
         }
 
         .key:hover {
-            background: #ff4757;
+            background: #4cbfae;
         }
 
         button, select {
@@ -112,13 +190,18 @@
             margin: 10px 0;
             text-align: center;
             cursor: pointer;
-            background: #ff6b6b;
+            background: #3ba7b5;
             color: white;
             border: none;
+            transition: 0.3s;
+        }
+
+        body.dark-theme button, body.dark-theme select {
+            background: #4c6a74; /* Темные кнопки в темной теме */
         }
 
         button:hover {
-            background: #ff4757;
+            background: #36a561;
             transform: scale(1.05);
         }
 
@@ -132,68 +215,89 @@
             font-weight: bold;
             color: yellow;
         }
-        .theme-toggle-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 10px;
-            background-color: #ff6b6b;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+
+        .content-section {
+            display: none;
         }
-        .theme-toggle-btn:hover {
-            background-color: #ff4757;
+
+        #main {
+            display: block;
         }
+
     </style>
 </head>
 
 <body class="light-theme">
-    <button class="theme-toggle-btn" onclick="toggleTheme()">🌙 Сменить тему</button>
+    <div class="menu">
+        <ul>
+            <li><a href="#" onclick="showSection('main')">Главная</a></li>
+            <li><a href="#" onclick="showSection('competitions')">Соревнования</a></li>
+            <li><a href="#" onclick="showSection('settings')">Настройки</a></li>
+        </ul>
+    </div>
 
-    <div class="moving-text">🔥 Решай задачи и прокачивай свой мозг! 🚀</div>
-    <div class="main-container">
-        <div class="left-panel">
-            <h1 id="title">🔢 Генератор задач</h1>
-            <p id="timer" style="font-size: 18px; font-weight: bold; color: yellow;">⏳ 60 сек.</p>
-            <h2 class="math-equation" id="task">$$x^3 - 6x = 0$$</h2>
-            <input type="text" id="answer" placeholder="Введите ответ">
-            <div class="keyboard">
-                <button class="key" onclick="insertSymbol('√')">√</button>
-                <button class="key" onclick="insertSymbol('^')">^</button>
-                <button class="key" onclick="insertSymbol('π')">π</button>
+    <div id="main" class="content-section">
+        <button class="theme-toggle-btn" onclick="toggleTheme()">🌙 Сменить тему</button>
+        <div class="moving-text">🔥 Решай задачи и прокачивай свой мозг! 🚀</div>
+        <div class="main-container">
+            <div class="left-panel">
+                <h1 id="title">🔢 Генератор задач</h1>
+                <p id="timer" style="font-size: 18px; font-weight: bold; color: yellow;">⏳ 60 сек.</p>
+                <h2 class="math-equation" id="task">$$x^3 - 6x = 0$$</h2>
+                <input type="text" id="answer" placeholder="Введите ответ">
+                <div class="keyboard">
+                    <button class="key" onclick="insertSymbol('√')">√</button>
+                    <button class="key" onclick="insertSymbol('^')">^</button>
+                    <button class="key" onclick="insertSymbol('π')">π</button>
+                </div>
+                <button id="check-btn" onclick="checkAnswer()">✅ Проверить</button>
+                <p id="result" class="result"></p>
+                <p id="score" class="score">🔢 Ваши баллы: 0</p>
             </div>
-            <button id="check-btn" onclick="checkAnswer()">✅ Проверить</button>
-            <p id="result" class="result"></p>
-            <p id="score" class="score">🔢 Ваши баллы: 0</p>
-        </div>
-        <div class="right-panel">
-            <label for="language" id="lang-label">🌎 Выберите язык:</label>
-            <select id="language" onchange="changeLanguage()">
-                <option value="ru">Русский 🇷🇺</option>
-                <option value="kz">Қазақша 🇰🇿</option>
-                <option value="en">English 🇬🇧</option>
-            </select>
-            <label for="category" id="category-label">📚 Выберите категорию:</label>
-            <select id="category">
-                <option value="Arithmetic">➕ Арифметика</option>
-                <option value="Algebra">📐 Алгебра</option>
-                <option value="Trigonometry">📏 Тригонометрия</option>
-                <option value="Calculus 1">🔢 Calculus 1</option>
-                <option value="Calculus 2">📊 Calculus 2</option>
-            </select>
+            <div class="right-panel">
+                <label for="language" id="lang-label">🌎 Выберите язык:</label>
+                <select id="language" onchange="changeLanguage()">
+                    <option value="ru">Русский 🇷🇺</option>
+                    <option value="kz">Қазақша 🇰🇿</option>
+                    <option value="en">English 🇬🇧</option>
+                </select>
+                <label for="category" id="category-label">📚 Выберите категорию:</label>
+                <select id="category">
+                    <option value="Arithmetic">➕ Арифметика</option>
+                    <option value="Algebra">📐 Алгебра</option>
+                    <option value="Trigonometry">📏 Тригонометрия</option>
+                    <option value="Calculus 1">🔢 Calculus 1</option>
+                    <option value="Calculus 2">📊 Calculus 2</option>
+                </select>
 
-            <label for="difficulty" id="difficulty-label">🎯 Выберите сложность:</label>
-            <select id="difficulty" onchange="changeDifficulty()">
-                <option value="easy">Легкий</option>
-                <option value="medium">Средний</option>
-                <option value="hard">Сложный</option>
-            </select>
-            <button id="generate-btn" onclick="generateTask()">🚀 Сгенерировать задачу</button>
+                <label for="difficulty" id="difficulty-label">🎯 Выберите сложность:</label>
+                <select id="difficulty" onchange="changeDifficulty()">
+                    <option value="easy">Легкий</option>
+                    <option value="medium">Средний</option>
+                    <option value="hard">Сложный</option>
+                </select>
+                <button id="generate-btn" onclick="generateTask()">🚀 Сгенерировать задачу</button>
+            </div>
         </div>
     </div>
+
+    <div id="competitions" class="content-section">
+        <h2>Соревнования</h2>
+        <p>Здесь будет раздел для соревнований между пользователями.</p>
+    </div>
+
+    <div id="settings" class="content-section">
+        <h2>Настройки</h2>
+        <p>Здесь будут настройки приложения.</p>
+    </div>
+
     <script>
+        function showSection(section) {
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach((sec) => sec.style.display = 'none'); // Скрываем все секции
+            document.getElementById(section).style.display = 'block'; // Показываем нужную
+        }
+
         function toggleTheme() {
             let body = document.body;
             if (body.classList.contains("light-theme")) {
