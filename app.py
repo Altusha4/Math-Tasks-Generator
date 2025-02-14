@@ -3,6 +3,7 @@ import random
 import sympy as sp
 from flask_socketio import SocketIO, send, emit
 import eventlet
+from flask_socketio import join_room, leave_room
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
@@ -10,12 +11,58 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 score_data = {"score": 0}
 connected_users = set()
 
+
+@socketio.on('connect')
 @socketio.on('connect')
 def handle_connect():
     user_id = request.sid
     connected_users.add(user_id)
     print(f"🔵 Новый пользователь подключился: {user_id} (Всего: {len(connected_users)})")
-    emit('user_connected', {'message': f'Привет, {user_id}!'}, broadcast=True)
+
+    if len(connected_users) == 2:
+        emit('start_competition', {'message': 'Соревнование началось!'}, room=user_id)
+        for user in connected_users:
+            join_room('competition_room')  # Все подключаются в одну комнату
+        emit('question', {'question': "12 + 8 = ?"}, room='competition_room')  # Отправляем вопрос всем в комнате
+
+@socketio.on('submit_answer')
+def handle_answer(data):
+    user_answer = data['answer']
+    user_id = request.sid
+    print(f"👤 Пользователь {user_id} ответил: {user_answer}")
+
+    correct_answer = "20"  # Пример правильного ответа
+
+    if user_answer == correct_answer:
+        emit('answer_result', {'result': 'correct'}, room=user_id)
+        # Увеличиваем счет игрока, отправляем обновленный счет
+        score_data["score"] += 10
+        emit("score_updated", score_data, broadcast=True)
+    else:
+        emit('answer_result', {'result': 'incorrect'}, room=user_id)
+
+leaderboard = {}
+
+@socketio.on('end_competition')
+def handle_end_competition():
+    user_id = request.sid
+    # Обновляем таблицу лидеров
+    leaderboard[user_id] = score_data["score"]
+    print(f"Лидеры: {leaderboard}")
+    emit('leaderboard', {'leaderboard': leaderboard}, broadcast=True)
+
+
+@app.route('/register_offline', methods=['POST'])
+def register_offline():
+    data = request.json
+    name = data.get('name')
+    email = data.get('email')
+
+    # Сохраняем информацию в базе данных или в файле
+    with open('offline_registration.txt', 'a') as f:
+        f.write(f"{name}, {email}\n")
+
+    return jsonify({"message": "Регистрация успешна!"}), 200
 
 @socketio.on('disconnect')
 def handle_disconnect():
