@@ -3,6 +3,7 @@ import random
 import sympy as sp
 from flask_socketio import SocketIO, send, emit
 import eventlet
+from flask_socketio import SocketIO, join_room, emit
 from flask_socketio import join_room, leave_room
 
 app = Flask(__name__)
@@ -10,20 +11,16 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 score_data = {"score": 0}
 connected_users = set()
+ready_users = set()
 
-
-@socketio.on('connect')
 @socketio.on('connect')
 def handle_connect():
     user_id = request.sid
     connected_users.add(user_id)
     print(f"🔵 Новый пользователь подключился: {user_id} (Всего: {len(connected_users)})")
 
-    if len(connected_users) == 2:
-        emit('start_competition', {'message': 'Соревнование началось!'}, room=user_id)
-        for user in connected_users:
-            join_room('competition_room')  # Все подключаются в одну комнату
-        emit('question', {'question': "12 + 8 = ?"}, room='competition_room')  # Отправляем вопрос всем в комнате
+    # Отправляем всем пользователям обновленное количество подключенных
+    emit('update_connected_users', {'connected_count': len(connected_users)}, broadcast=True)
 
 @socketio.on('submit_answer')
 def handle_answer(data):
@@ -42,6 +39,24 @@ def handle_answer(data):
         emit('answer_result', {'result': 'incorrect'}, room=user_id)
 
 leaderboard = {}
+
+@socketio.on('start_competition')
+def start_competition(data):
+    user_id = request.sid
+    ready_users.add(user_id)  # Добавляем пользователя в список готовых
+
+    # Отправляем всем пользователям обновленный список готовых
+    emit('update_ready_users', {'ready_users': len(ready_users)}, broadcast=True)
+
+    if len(ready_users) == 2:
+        # Когда два пользователя готовы, начинаем соревнование
+        emit('start_competition', {'message': 'Соревнование началось!'}, room=user_id)
+        # Присоединяем пользователей к одной комнате
+        for user in ready_users:
+            join_room('competition_room')
+        # Отправляем вопрос пользователям
+        emit('question', {'question': "12 + 8 = ?"}, room='competition_room')
+
 
 @socketio.on('end_competition')
 def handle_end_competition():
@@ -70,6 +85,9 @@ def handle_disconnect():
     if user_id in connected_users:
         connected_users.remove(user_id)
     print(f"🔴 Пользователь отключился: {user_id} (Осталось: {len(connected_users)})")
+
+    # Отправляем всем пользователям обновленное количество подключенных
+    emit('update_connected_users', {'connected_count': len(connected_users)}, broadcast=True)
 
 @socketio.on('message')
 def handle_message(msg):
