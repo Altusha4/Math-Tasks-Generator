@@ -239,6 +239,20 @@
     <div id="competitions" class="content-section">
         <h2>Онлайн соревнования</h2>
         <p id="connected-count">Подключен 0 человек</p>
+        <div id="competitions-list"></div> <!-- Место для отображения математических соревнований -->
+            <button class="category-btn" data-category="Arithmetic">Начать Арифметика соревнование</button>
+        <button class="category-btn" data-category="Algebra">Начать Алгебра соревнование</button>
+        <button class="category-btn" data-category="Trigonometry">Начать Тригонометрия соревнование</button>
+        <button class="category-btn" data-category="Calculus 1">Начать Calculus 1 соревнование</button>
+        <button class="category-btn" data-category="Calculus 2">Начать Calculus 2 соревнование</button>
+        <button id="start-competition-btn">Начать онлайн соревнование</button>
+
+        <p id="Arithmetic-count">Подключен 0 человек</p>
+        <p id="Algebra-count">Подключен 0 человек</p>
+        <p id="Trigonometry-count">Подключен 0 человек</p>
+        <p id="Calculus 1-count">Подключен 0 человек</p>
+        <p id="Calculus 2-count">Подключен 0 человек</p>
+
         <button id="start-competition-btn">Начать онлайн соревнование</button>
 
         <h2>Оффлайн соревнования</h2>
@@ -250,6 +264,13 @@
             <input type="email" id="email" name="email" required>
             <button type="submit">Зарегистрироваться</button>
         </form>
+    </div>
+    <div id="competitions-list">
+        <button class="category-btn" data-category="Arithmetic">Начать Арифметика соревнование</button>
+        <button class="category-btn" data-category="Algebra">Начать Алгебра соревнование</button>
+        <button class="category-btn" data-category="Trigonometry">Начать Тригонометрия соревнование</button>
+        <button class="category-btn" data-category="Calculus 1">Начать Calculus 1 соревнование</button>
+        <button class="category-btn" data-category="Calculus 2">Начать Calculus 2 соревнование</button>
     </div>
 
     <div id="main" class="content-section">
@@ -309,15 +330,62 @@
 
     <script>
         var socket = io.connect("http://127.0.0.1:5050");
-
         console.log(socket.connected);
+
+        function fetchMathCompetitions() {
+            fetch('/get_available_math_competitions')
+                .then(response => response.json())
+                .then(data => {
+                    const competitionsList = document.getElementById('competitions-list');
+                    competitionsList.innerHTML = ''; // Очищаем список
+
+                    if (data.length === 0) {
+                        competitionsList.innerHTML = 'Нет доступных математических соревнований.';
+                        return;
+                    }
+
+                    data.forEach(comp => {
+                        const compButton = document.createElement('button');
+                        compButton.innerText = `Начать ${comp.name} соревнование`;
+                        compButton.addEventListener('click', function() {
+                            socket.emit('start_math_competition', { category_name: comp.name });
+                        });
+                        competitionsList.appendChild(compButton);
+                    });
+                });
+        }
 
         socket.on('connect', function() {
             console.log("Подключение к WebSocket успешно!");
+            fetchMathCompetitions();
         });
 
         socket.on('update_connected_users', function(data) {
             document.getElementById('connected-count').innerText = `Подключен ${data.connected_count} человек`;
+        });
+
+        socket.on('update_ready_users', function(data) {
+            const categoryName = data.category_name;
+            const readyCount = data.ready_count;
+
+            // Обновляем отображение количества готовых пользователей для каждой категории
+            document.getElementById(`${categoryName}-count`).innerText = `Подключен ${readyCount} человек`;
+        });
+
+        socket.on('update_available_competitions', function(data) {
+            const competitionsList = document.getElementById('competitions-list');
+            competitionsList.innerHTML = '';
+            if (data.competitions.length === 0) {
+                competitionsList.innerHTML = 'Нет доступных соревнований.';
+            }
+            data.competitions.forEach(comp => {
+                const compButton = document.createElement('button');
+                compButton.innerText = `Начать ${comp.name} соревнование`;
+                compButton.addEventListener('click', function() {
+                    socket.emit('start_math_competition', { category_name: comp.name });
+                });
+                competitionsList.appendChild(compButton);
+            });
         });
 
         document.getElementById('start-competition-btn').addEventListener('click', function () {
@@ -448,6 +516,19 @@
         clearInterval(timerInterval);  // Останавливаем старый таймер
         startTimer();  // Запускаем новый
     }
+
+        // Обработчик для кнопок категорий
+    function startCategoryCompetition(categoryName) {
+        socket.emit('start_competition', { category_name: categoryName });
+    }
+
+    // Добавляем обработчики событий для каждой кнопки категории
+    document.querySelectorAll('.category-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const categoryName = this.getAttribute('data-category');
+            startCategoryCompetition(categoryName);
+        });
+    });
 
     function generateTask() {
         let category = document.getElementById("category").value;
