@@ -235,36 +235,19 @@
             <li><a href="#" onclick="showSection('settings')">Настройки</a></li>
         </ul>
     </div>
+
     <div id="competitions" class="content-section">
         <h2>Онлайн соревнования</h2>
-        <button onclick="startOnlineCompetition()">Начать онлайн соревнование</button>
+        <p id="connected-count">Подключен 0 человек</p>
+        <button id="start-competition-btn">Начать онлайн соревнование</button>
 
         <h2>Оффлайн соревнования</h2>
         <p>Зарегистрируйтесь для участия в оффлайн соревнованиях.</p>
         <form id="offline-registration">
             <label for="name">Ваше имя:</label>
             <input type="text" id="name" name="name" required>
-
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required>
-
-            <button type="submit">Зарегистрироваться</button>
-        </form>
-    </div>
-
-    <div id="competitions" class="content-section">
-        <h2>Онлайн соревнования</h2>
-        <button onclick="startOnlineCompetition()">Начать онлайн соревнование</button>
-
-        <h2>Оффлайн соревнования</h2>
-        <p>Зарегистрируйтесь для участия в оффлайн соревнованиях.</p>
-        <form id="offline-registration">
-            <label for="name">Ваше имя:</label>
-            <input type="text" id="name" name="name" required>
-
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
-
             <button type="submit">Зарегистрироваться</button>
         </form>
     </div>
@@ -325,6 +308,50 @@
     </div>
 
     <script>
+        var socket = io.connect("http://127.0.0.1:5050");
+
+        console.log(socket.connected);
+
+        socket.on('connect', function() {
+            console.log("Подключение к WebSocket успешно!");
+        });
+
+        socket.on('update_connected_users', function(data) {
+            document.getElementById('connected-count').innerText = `Подключен ${data.connected_count} человек`;
+        });
+
+        document.getElementById('start-competition-btn').addEventListener('click', function () {
+            console.log("Кнопка нажата, отправляем запрос на сервер...");
+            socket.emit('start_competition', { message: 'Начать онлайн соревнование!' });
+        });
+
+        socket.on('start_competition', function (data) {
+            alert(data.message); // Покажем сообщение о начале соревнования
+            // Делаем кнопку неактивной, чтобы другие пользователи не могли начать соревнование
+            document.getElementById('start-competition-btn').disabled = true;
+        });
+
+
+        document.getElementById('offline-registration').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+
+            fetch('/register_offline', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                alert('Вы зарегистрированы для оффлайн соревнований!');
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+            });
+        });
+
         function showSection(section) {
             const sections = document.querySelectorAll('.content-section');
             sections.forEach((sec) => sec.style.display = 'none'); // Скрываем все секции
@@ -341,7 +368,6 @@
                 body.classList.add("light-theme");
             }
         }
-        var socket = io.connect("http://127.0.0.1:5050");
 
         socket.on("score_updated", function (data) {
             console.log("🔥 Обновлены очки:", data.score);
