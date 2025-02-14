@@ -235,6 +235,39 @@
             <li><a href="#" onclick="showSection('settings')">Настройки</a></li>
         </ul>
     </div>
+    <div id="competitions" class="content-section">
+        <h2>Онлайн соревнования</h2>
+        <button onclick="startOnlineCompetition()">Начать онлайн соревнование</button>
+
+        <h2>Оффлайн соревнования</h2>
+        <p>Зарегистрируйтесь для участия в оффлайн соревнованиях.</p>
+        <form id="offline-registration">
+            <label for="name">Ваше имя:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+    </div>
+
+    <div id="competitions" class="content-section">
+        <h2>Онлайн соревнования</h2>
+        <button onclick="startOnlineCompetition()">Начать онлайн соревнование</button>
+
+        <h2>Оффлайн соревнования</h2>
+        <p>Зарегистрируйтесь для участия в оффлайн соревнованиях.</p>
+        <form id="offline-registration">
+            <label for="name">Ваше имя:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+    </div>
 
     <div id="main" class="content-section">
         <button class="theme-toggle-btn" onclick="toggleTheme()">🌙 Сменить тему</button>
@@ -506,6 +539,26 @@
         .catch(error => console.error("Ошибка:", error));
     }
 
+    document.getElementById('offline-registration').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+
+        fetch('/register_offline', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, email})
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            alert('Вы зарегистрированы!');
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+        });
+    });
+
 
     function changeLanguage() {
         let selectedLang = document.getElementById("language").value;
@@ -536,6 +589,11 @@
         input.focus();
         input.selectionStart = input.selectionEnd = startPos + symbol.length;
     }
+
+    function startOnlineCompetition() {
+        socket.emit('start_competition', {message: 'Начать онлайн соревнование!'});
+    }
+
     </script>
 </body>
 </html>
