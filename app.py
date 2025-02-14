@@ -13,6 +13,23 @@ score_data = {"score": 0}
 connected_users = set()
 ready_users = set()
 
+# Доступные математические категории
+math_categories = {
+    "Арифметика": {"category_id": 1, "active": True},  # Сделаем арифметику активной
+    "Алгебра": {"category_id": 2, "active": False},
+    "Тригонометрия": {"category_id": 3, "active": False},
+    "Матанализ 1": {"category_id": 4, "active": False},
+    "Матанализ 2": {"category_id": 5, "active": False},
+}
+ready_users_by_category = {
+    "Arithmetic": set(),
+    "Algebra": set(),
+    "Trigonometry": set(),
+    "Calculus 1": set(),
+    "Calculus 2": set()
+}
+
+
 @socketio.on('connect')
 def handle_connect():
     user_id = request.sid
@@ -39,24 +56,45 @@ def handle_answer(data):
         emit('answer_result', {'result': 'incorrect'}, room=user_id)
 
 leaderboard = {}
+@app.route('/get_available_math_competitions', methods=['GET'])
+def get_available_math_competitions():
+    available_competitions = [
+        {"name": category, "id": info["category_id"], "active": info["active"]}
+        for category, info in math_categories.items() if info["active"]
+    ]
+    return jsonify(available_competitions), 200
+
+@socketio.on('start_math_competition')
+def start_math_competition(data):
+    category_name = data['category_name']
+    if category_name in math_categories:
+        math_categories[category_name]["active"] = True
+        emit('update_available_competitions', {'competitions': math_categories}, broadcast=True)
+        emit('start_competition', {'message': f"Соревнование по {category_name} началось!"})
+
 
 @socketio.on('start_competition')
 def start_competition(data):
+    category_name = data['category_name']
     user_id = request.sid
-    ready_users.add(user_id)  # Добавляем пользователя в список готовых
 
-    # Отправляем всем пользователям обновленный список готовых
-    emit('update_ready_users', {'ready_users': len(ready_users)}, broadcast=True)
+    # Добавляем пользователя в список готовых для выбранной категории
+    ready_users_by_category[category_name].add(user_id)
 
-    if len(ready_users) == 2:
+    # Проверяем, готовы ли два пользователя в выбранной категории
+    if len(ready_users_by_category[category_name]) == 2:
         # Когда два пользователя готовы, начинаем соревнование
-        emit('start_competition', {'message': 'Соревнование началось!'}, room=user_id)
-        # Присоединяем пользователей к одной комнате
-        for user in ready_users:
-            join_room('competition_room')
-        # Отправляем вопрос пользователям
-        emit('question', {'question': "12 + 8 = ?"}, room='competition_room')
+        emit('start_competition', {'message': f'Соревнование по {category_name} началось!'}, broadcast=True)
 
+        # Присоединяем пользователей к комнате соревнования
+        for user in ready_users_by_category[category_name]:
+            join_room(f'{category_name}_room')
+
+        # Отправляем вопрос пользователям
+        emit('question', {'question': "12 + 8 = ?"}, room=f'{category_name}_room')
+    else:
+        # Если менее двух человек, обновляем список готовых
+        emit('update_ready_users', {'ready_count': len(ready_users_by_category[category_name])}, broadcast=True)
 
 @socketio.on('end_competition')
 def handle_end_competition():
